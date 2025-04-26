@@ -12,7 +12,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🔥 POST /analyze route
+// 🔍 Analyze endpoint
 app.post("/analyze", async (req, res) => {
   const { url } = req.body;
 
@@ -22,19 +22,30 @@ app.post("/analyze", async (req, res) => {
   }
 
   try {
-    // ✅ Fetch website HTML
-    const html = await fetch(url).then((res) => res.text());
+    // ✅ Fetch HTML with spoofed browser headers
+    const html = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+      }
+    }).then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+      }
+      return res.text();
+    });
 
-    // ✅ Ask OpenAI to analyze the design
+    // ✅ Generate prompt for ChatGPT
     const prompt = `
-You are a UX/UI design expert. Analyze the HTML of the website below and provide:
+You are a UX/UI design expert. Analyze the website HTML below and provide:
 1. A Design Score out of 100
-2. 5 UX improvement recommendations
+2. 5 actionable UX improvement recommendations
 
 Website HTML:
 ${html}
     `;
 
+    // ✅ Ask OpenAI to analyze
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
@@ -45,12 +56,12 @@ ${html}
     res.json({ analysis });
 
   } catch (error) {
-    console.error("❌ Error during analysis:", error.message);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Backend error:", error.message);
+    res.status(500).json({ error: "Internal server error. Please try again later." });
   }
 });
 
-// ✅ Dynamic port for local + Render
+// 🚀 Dynamic port for local + Render
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ Backend server running on port ${PORT}`);
