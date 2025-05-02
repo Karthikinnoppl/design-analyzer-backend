@@ -1,3 +1,4 @@
+// ✅ index.js (backend)
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
@@ -12,48 +13,56 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🔥 POST /analyze route
 app.post("/analyze", async (req, res) => {
-  let { url } = req.body;
-
-  // ✅ If URL doesn't start with http/https, add https:// automatically
+  let { url, pageType } = req.body;
+  if (!pageType) pageType = "Homepage";
   if (url && !/^https?:\/\//i.test(url)) {
-    url = 'https://' + url;
+    url = "https://" + url;
   }
-
   if (!url || !url.startsWith("http")) {
     return res.status(400).json({ error: "❌ Invalid URL provided" });
   }
 
   try {
-    // ✅ Fetch website HTML
     const html = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      }
-    }).then(res => {
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} - ${res.statusText}`);
-      }
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    }).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
       return res.text();
     });
 
-    // ✅ Limit HTML to avoid GPT token limit (safe ~15000 characters)
     const limitedHtml = html.substring(0, 15000);
 
-    // ✅ Prepare prompt
     const prompt = `
-You are a senior UX/UI designer. 
-Analyze the website HTML below and provide:
-1. A Design Score out of 100
-2. 5 specific UX/UI improvement recommendations
+You are a senior UX/UI design expert.
+
+The user has provided a webpage HTML for analysis.
+The page type is: ${pageType}.
+
+Please return your analysis in the following clearly separated sections:
+
+1. A line like: "Design Score: [score]/100"
+2. Then a section titled "## Recommendations", listing 5 actionable recommendations for UX/UI improvement on the given ${pageType}.
+3. Then a section titled "## Advanced UX Checklist" formatted strictly as a markdown table with two columns:
+
+| Category | Status |
+|----------|--------|
+| Navigation clarity and consistency | ✅ Pass |
+| Visual hierarchy and layout alignment | ⚠️ Needs Improvement |
+| CTA clarity and visibility | ✅ Pass |
+| Mobile responsiveness | ⚠️ Needs Improvement |
+| Accessibility | ✅ Pass |
+| Page performance and speed | ⚠️ Needs Improvement |
+
+Do not include any introduction or explanation outside these sections. Only the analysis result.
 
 Website HTML:
 ${limitedHtml}
-    `;
+`;
 
-    // ✅ Call OpenAI (gpt-3.5-turbo)
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
@@ -62,14 +71,12 @@ ${limitedHtml}
 
     const analysis = completion.choices[0].message.content;
     res.json({ analysis });
-
   } catch (error) {
-    console.error("❌ Backend error:", error.message);
+    console.error("❌ Error during analysis:", error.message);
     res.status(500).json({ error: "Internal server error. Please try again later." });
   }
 });
 
-// 🚀 Dynamic PORT for local + Render
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ Backend server running on port ${PORT}`);
