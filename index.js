@@ -3,11 +3,26 @@ const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
+const mongoose = require("mongoose");
 require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ✅ MongoDB connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+const DesignResultSchema = new mongoose.Schema({
+  url: String,
+  pageType: String,
+  score: Number,
+  createdAt: { type: Date, default: Date.now },
+});
+const DesignResult = mongoose.model("DesignResult", DesignResultSchema);
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -70,6 +85,14 @@ ${limitedHtml}
     });
 
     const analysis = completion.choices[0].message.content;
+    const scoreMatch = analysis.match(/Design Score: (\d+)/);
+    const score = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
+
+    // ✅ Save to DB
+    if (score !== null) {
+      await DesignResult.create({ url, pageType, score });
+    }
+
     res.json({ analysis });
   } catch (error) {
     console.error("❌ Error during analysis:", error.message);
