@@ -1,82 +1,108 @@
-// ✅ index.js (backend)
+// index.js with final audit-only prompt enforcement
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
+const puppeteer = require("puppeteer");
 require("dotenv").config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ MongoDB connection (fixed MONGO_URI → MONGODB_URI)
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+mongoose.connect(process.env.MONGO_URI);
 
 const DesignResultSchema = new mongoose.Schema({
   url: String,
   pageType: String,
   score: Number,
+  pageSpeed: Number,
+  analysisSections: Object,
+  checklist: Array,
   createdAt: { type: Date, default: Date.now },
 });
 const DesignResult = mongoose.model("DesignResult", DesignResultSchema);
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+async function fetchImportantSections(url) {
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+  const page = await browser.newPage();
+  await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+  const safeEval = async (selector) => {
+    try {
+      return await page.$eval(selector, (el) => el.outerHTML);
+    } catch {
+      return "";
+    }
+  };
+  const header = await safeEval("header");
+  const nav = await safeEval("nav");
+  const footer = await safeEval("footer");
+  const main = await safeEval("main");
+  await browser.close();
+  return [header, nav, footer, main].join("\n\n").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<meta[\s\S]*?>/gi, "").replace(/\s{2,}/g, " ").slice(0, 10000);
+}
+
+function getValidationInstructions(pageType) {
+  switch (pageType) {
+    case "Homepage": return `Clear nav, search bar, banners, featured categories, internal links.`;
+    case "PLP": return `Filters, sort options, product grid layout, breadcrumbs, category headings.`;
+    case "PDP": return `Title, image, ATC button, reviews, variant selectors, related products.`;
+    case "Blog": return `Featured image, author/date info, readable typography, tags, CTA or related content.`;
+    default: return "";
+  }
+}
+
+async function getPageSpeedScore(url) {
+  const apiKey = process.env.PAGESPEED_API_KEY;
+  const endpoint = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${apiKey}&strategy=mobile`;
+  const response = await fetch(endpoint);
+  const data = await response.json();
+  const score = data?.lighthouseResult?.categories?.performance?.score;
+  return score ? Math.round(score * 100) : null;
+}
 
 app.post("/analyze", async (req, res) => {
   let { url, pageType } = req.body;
   if (!pageType) pageType = "Homepage";
-  if (url && !/^https?:\/\//i.test(url)) {
-    url = "https://" + url;
-  }
-  if (!url || !url.startsWith("http")) {
-    return res.status(400).json({ error: "❌ Invalid URL provided" });
-  }
+  if (url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  if (!url.startsWith("http")) return res.status(400).json({ error: "❌ Invalid URL provided" });
 
   try {
-    const html = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    }).then((res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
-      return res.text();
-    });
+    const htmlSnippet = await fetchImportantSections(url);
+    const instructions = getValidationInstructions(pageType);
 
-    const limitedHtml = html.substring(0, 15000);
+    const prompt = `You are a senior UX auditor. Do not return extracted HTML or DOM metadata.
+Your task is to evaluate the UX/UI quality of the following ${pageType} page.
 
-    const prompt = `
-You are a senior UX/UI design expert.
+Respond ONLY with a valid JSON object in this exact format:
+{
+  "score": 75,
+  "sections": {
+    "Product Discovery": "- ✅ ...\n- ⚠️ ...\n- ❌ ...\n- ⚠️ ...\n- ✅ ...",
+    "Branding & Trust": "...",
+    "Mobile Experience": "...",
+    "Performance Perception": "...",
+    "Recommendations": "..."
+  },
+  "checklist": [
+    { "category": "Navigation clarity and consistency", "status": "✅ Pass" },
+    { "category": "Visual hierarchy", "status": "⚠️ Needs Improvement" },
+    { "category": "Mobile responsiveness", "status": "⚠️ Needs Improvement" }
+  ]
+}
 
-The user has provided a webpage HTML for analysis.
-The page type is: ${pageType}.
+Each section must contain exactly 5 bullet points. Each bullet:
+- Starts with ✅, ⚠️, or ❌
+- Is a full sentence
+- Is written on its own line
+- Does NOT contain multiple observations in one bullet
 
-Please return your analysis in the following clearly separated sections:
-
-1. A line like: "Design Score: [score]/100"
-2. Then a section titled "## Recommendations", listing 5 actionable recommendations for UX/UI improvement on the given ${pageType}.
-3. Then a section titled "## Advanced UX Checklist" formatted strictly as a markdown table with two columns:
-
-| Category | Status |
-|----------|--------|
-| Navigation clarity and consistency | ✅ Pass |
-| Visual hierarchy and layout alignment | ⚠️ Needs Improvement |
-| CTA clarity and visibility | ✅ Pass |
-| Mobile responsiveness | ⚠️ Needs Improvement |
-| Accessibility | ✅ Pass |
-| Page performance and speed | ⚠️ Needs Improvement |
-
-Do not include any introduction or explanation outside these sections. Only the analysis result.
-
-Website HTML:
-${limitedHtml}
-`;
+Context: ${instructions}
+HTML Snapshot:
+${htmlSnippet}`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -84,19 +110,53 @@ ${limitedHtml}
       temperature: 0.7,
     });
 
-    const analysis = completion.choices[0].message.content;
-    const scoreMatch = analysis.match(/Design Score: (\d+)/);
-    const score = scoreMatch ? parseInt(scoreMatch[1], 10) : null;
+    const raw = completion.choices[0].message.content;
+    console.log("🔍 GPT Raw Response:\n", raw);
 
-    // ✅ Save to DB
-    if (score !== null) {
-      await DesignResult.create({ url, pageType, score });
+    const jsonMatch = raw.match(/{[\s\S]*}/);
+    if (!jsonMatch) {
+      console.error("❌ Could not extract JSON object from GPT response.");
+      return res.status(500).json({ error: "Malformed GPT response." });
     }
 
-    res.json({ analysis });
+    const cleanJson = jsonMatch[0]
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/\u0000/g, "")
+      .replace(/\r/g, "")
+      .replace(/\n(?![-✅⚠️❌])/g, " ")
+      .replace(/\n/g, "\\n")
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanJson);
+    } catch (err) {
+      console.error("❌ JSON parse error:", err.message);
+      return res.status(500).json({ error: "Invalid JSON format from GPT." });
+    }
+
+    const cleanedSections = parsed.sections;
+    const pageSpeed = await getPageSpeedScore(url);
+
+    await DesignResult.create({
+      url,
+      pageType,
+      score: parsed.score,
+      pageSpeed,
+      analysisSections: cleanedSections,
+      checklist: parsed.checklist,
+    });
+
+    res.json({
+      score: parsed.score,
+      pageSpeed,
+      analysisSections: cleanedSections,
+      checklist: parsed.checklist,
+    });
   } catch (error) {
     console.error("❌ Error during analysis:", error.message);
-    res.status(500).json({ error: "Internal server error. Please try again later." });
+    res.status(500).json({ error: "Internal server error." });
   }
 });
 
