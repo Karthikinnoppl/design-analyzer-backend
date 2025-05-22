@@ -1,17 +1,27 @@
-// index.js with final audit-only prompt enforcement
+// index.js — uses corrected GPT prompt for multiline section output
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
-const puppeteer = require("puppeteer");
+const isRender = process.env.RENDER === "true";
 require("dotenv").config();
+
+const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
+const chromium = isRender ? require("chrome-aws-lambda") : null;
+
+if (!process.env.MONGO_URI || !process.env.OPENAI_API_KEY || !process.env.PAGESPEED_API_KEY) {
+  console.error("❌ Required environment variables are missing.");
+  process.exit(1);
+}
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 mongoose.connect(process.env.MONGO_URI);
+mongoose.connection.once("open", () => console.log("✅ Connected to MongoDB"));
+mongoose.connection.on("error", (err) => console.error("❌ MongoDB error:", err));
 
 const DesignResultSchema = new mongoose.Schema({
   url: String,
@@ -27,9 +37,22 @@ const DesignResult = mongoose.model("DesignResult", DesignResultSchema);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function fetchImportantSections(url) {
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+  const browser = await puppeteer.launch(
+    isRender
+      ? {
+          args: chromium.args,
+          executablePath: await chromium.executablePath,
+          headless: chromium.headless,
+          defaultViewport: chromium.defaultViewport,
+        }
+      : {
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        }
+  );
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+
   const safeEval = async (selector) => {
     try {
       return await page.$eval(selector, (el) => el.outerHTML);
@@ -37,11 +60,13 @@ async function fetchImportantSections(url) {
       return "";
     }
   };
+
   const header = await safeEval("header");
   const nav = await safeEval("nav");
   const footer = await safeEval("footer");
   const main = await safeEval("main");
   await browser.close();
+
   return [header, nav, footer, main].join("\n\n").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<meta[\s\S]*?>/gi, "").replace(/\s{2,}/g, " ").slice(0, 10000);
 }
 
