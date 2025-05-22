@@ -1,11 +1,12 @@
 // index.js — uses corrected GPT prompt for multiline section output
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
 const isRender = process.env.RENDER === "true";
-require("dotenv").config();
+
 
 const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
 const chromium = isRender ? require("chrome-aws-lambda") : null;
