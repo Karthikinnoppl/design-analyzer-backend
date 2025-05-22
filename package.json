@@ -14,5 +14,8 @@
     "node-fetch": "^2.6.7",
     "openai": "^4.0.0",
     "puppeteer-core": "^10.4.0"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.9.0"
   }
 }

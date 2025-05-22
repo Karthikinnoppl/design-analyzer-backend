@@ -1,15 +1,21 @@
 // index.js — uses corrected GPT prompt for multiline section output
-require("dotenv").config();
+require("dotenv").config(); // MUST be first
+
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
+
 const isRender = process.env.RENDER === "true";
+console.log("✅ isRender =", isRender); // Confirm Render mode in logs
 
+const puppeteer = isRender
+  ? require("puppeteer-core")
+  : require("puppeteer");
 
-const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
 const chromium = isRender ? require("chrome-aws-lambda") : null;
+
 
 if (!process.env.MONGO_URI || !process.env.OPENAI_API_KEY || !process.env.PAGESPEED_API_KEY) {
   console.error("❌ Required environment variables are missing.");
