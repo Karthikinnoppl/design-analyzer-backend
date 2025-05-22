@@ -1,5 +1,4 @@
-// index.js — uses corrected GPT prompt for multiline section output
-require("dotenv").config(); // MUST be first
+require("dotenv").config(); // must come first
 
 const express = require("express");
 const cors = require("cors");
@@ -7,14 +6,20 @@ const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
 
-const isRender = process.env.RENDER === "true";
-console.log("✅ isRender =", isRender); // Confirm Render mode in logs
+// 💡 Detect Render or Local mode
+const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
 
+// 🐞 Debug logs to confirm environment logic
+console.log("🔍 process.env.RENDER =", process.env.RENDER);
+console.log("✅ isRender =", isRender);
+
+// 🧠 Use puppeteer-core + chrome-aws-lambda on Render, full puppeteer locally
 const puppeteer = isRender
   ? require("puppeteer-core")
   : require("puppeteer");
 
 const chromium = isRender ? require("chrome-aws-lambda") : null;
+
 
 
 if (!process.env.MONGO_URI || !process.env.OPENAI_API_KEY || !process.env.PAGESPEED_API_KEY) {
