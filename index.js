@@ -16,8 +16,16 @@ if (!process.env.MONGO_URI || !process.env.OPENAI_API_KEY || !process.env.PAGESP
   process.exit(1);
 }
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://design-score-app.vercel.app"
+];
+
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 
 mongoose.connect(process.env.MONGO_URI);
