@@ -1,4 +1,4 @@
-require("dotenv").config(); // must come first
+require("dotenv").config(); // Load .env first
 
 const express = require("express");
 const cors = require("cors");
@@ -6,19 +6,22 @@ const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
 
-// 💡 Detect Render or Local mode
-const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
+// ✅ Robust Render mode detection
+const isRender =
+  process.env.RENDER === "true" ||
+  process.env.NODE_ENV === "production" ||
+  !!process.env.RENDER_EXTERNAL_URL;
 
-// 🐞 Debug logs to confirm environment logic
+// 🐞 Debug logs
 console.log("🔍 process.env.RENDER =", process.env.RENDER);
+console.log("🔍 process.env.NODE_ENV =", process.env.NODE_ENV);
+console.log("🔍 process.env.RENDER_EXTERNAL_URL =", process.env.RENDER_EXTERNAL_URL);
 console.log("✅ isRender =", isRender);
 
-// 🧠 Use puppeteer-core + chrome-aws-lambda on Render, full puppeteer locally
-const puppeteer = isRender
-  ? require("puppeteer-core")
-  : require("puppeteer");
-
+// ✅ Dynamic puppeteer engine loading
+const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
 const chromium = isRender ? require("chrome-aws-lambda") : null;
+
 
 
 
