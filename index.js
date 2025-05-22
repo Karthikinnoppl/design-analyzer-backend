@@ -29,7 +29,8 @@ const allowedOrigins = [
 
 const app = express();
 
-app.use(cors({
+// 🌐 CORS setup first
+const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       "http://localhost:3000",
@@ -41,8 +42,14 @@ app.use(cors({
       callback(new Error("Not allowed by CORS"));
     }
   },
-  credentials: true
-}));
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // handle preflight requests ✅
+
 app.use(express.json());
 
 mongoose.connect(process.env.MONGO_URI);
