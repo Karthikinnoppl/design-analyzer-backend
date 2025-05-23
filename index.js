@@ -78,19 +78,30 @@ const DesignResult = mongoose.model("DesignResult", DesignResultSchema);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function fetchImportantSections(url) {
-  const browser = await puppeteer.launch(
-    isRender
-      ? {
-          args: chromium.args,
-          executablePath: await chromium.executablePath,
-          headless: chromium.headless,
-          defaultViewport: chromium.defaultViewport,
-        }
-      : {
-          headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-        }
-  );
+  console.log("🚀 Launching Puppeteer...");
+
+  let browser;
+  try {
+    browser = await puppeteer.launch(
+      isRender
+        ? {
+            args: chromium.args,
+            executablePath: await chromium.executablePath,
+            headless: chromium.headless,
+            defaultViewport: chromium.defaultViewport,
+          }
+        : {
+            headless: true,
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          }
+    );
+
+    console.log("✅ Puppeteer launched successfully");
+  } catch (error) {
+    console.error("❌ Error launching Puppeteer:", error);
+    throw error; // Optional: handle gracefully
+  }
+
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -106,10 +117,12 @@ async function fetchImportantSections(url) {
   const nav = await safeEval("nav");
   const footer = await safeEval("footer");
   const main = await safeEval("main");
+
   await browser.close();
 
-  return [header, nav, footer, main].join("\n\n").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<meta[\s\S]*?>/gi, "").replace(/\s{2,}/g, " ").slice(0, 10000);
+  return { header, nav, footer, main };
 }
+
 
 function getValidationInstructions(pageType) {
   switch (pageType) {
