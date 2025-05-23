@@ -80,10 +80,12 @@ async function fetchImportantSections(url) {
 
   let browser;
   try {
+    const executablePath = isRender ? await chromium.executablePath : undefined;
+
     const launchOptions = isRender
       ? {
           args: chromium.args,
-          executablePath: (await chromium.executablePath) || null,
+          executablePath,
           headless: chromium.headless,
           defaultViewport: chromium.defaultViewport,
         }
@@ -93,13 +95,17 @@ async function fetchImportantSections(url) {
           defaultViewport: null,
         };
 
-    browser = await puppeteer.launch(launchOptions);
+    if (!executablePath && isRender) {
+      throw new Error("Chromium executablePath is null on Render. Check chrome-aws-lambda setup.");
+    }
 
+    browser = await puppeteer.launch(launchOptions);
     console.log("✅ Puppeteer launched successfully");
   } catch (error) {
     console.error("❌ Error launching Puppeteer:", error);
     throw error;
   }
+
 
 
   const page = await browser.newPage();
