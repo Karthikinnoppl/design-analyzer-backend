@@ -6,6 +6,8 @@ const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
 
+const app = express();
+
 // ✅ Robust Render mode detection
 const isRender =
   process.env.RENDER === "true" ||
@@ -35,15 +37,8 @@ const allowedOrigins = [
   "https://design-score-app.vercel.app"
 ];
 
-const app = express();
-
-// 🌐 CORS setup first
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = [
-      "http://localhost:3000",
-      "https://design-score-app.vercel.app"
-    ];
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -56,7 +51,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight requests ✅
+app.options("*", cors(corsOptions)); // handle preflight OPTIONS requests
+
 
 app.use(express.json());
 
