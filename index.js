@@ -82,25 +82,27 @@ async function fetchImportantSections(url) {
 
   let browser;
   try {
-    browser = await puppeteer.launch(
-      isRender
-        ? {
-            args: chromium.args,
-            executablePath: await chromium.executablePath,
-            headless: chromium.headless,
-            defaultViewport: chromium.defaultViewport,
-          }
-        : {
-            headless: true,
-            args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          }
-    );
+    const launchOptions = isRender
+      ? {
+          args: chromium.args,
+          executablePath: await chromium.executablePath || "/usr/bin/chromium-browser",
+          headless: chromium.headless,
+          defaultViewport: chromium.defaultViewport,
+        }
+      : {
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          defaultViewport: null,
+        };
+
+    browser = await puppeteer.launch(launchOptions);
 
     console.log("✅ Puppeteer launched successfully");
   } catch (error) {
     console.error("❌ Error launching Puppeteer:", error);
-    throw error; // Optional: handle gracefully
+    throw error;
   }
+
 
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
