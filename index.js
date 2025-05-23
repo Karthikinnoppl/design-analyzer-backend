@@ -77,15 +77,24 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function fetchImportantSections(url) {
   console.log("🚀 Launching Puppeteer...");
-
   let browser;
+
   try {
     const executablePath = isRender ? await chromium.executablePath : undefined;
+
+    if (isRender) {
+      console.log("🧭 Render mode detected");
+      console.log("📍 Chromium executablePath =", executablePath);
+
+      if (!executablePath) {
+        throw new Error("Chromium executablePath is null on Render. Check if chrome-aws-lambda is installed properly.");
+      }
+    }
 
     const launchOptions = isRender
       ? {
           args: chromium.args,
-          executablePath,
+          executablePath: await chromium.executablePath,
           headless: chromium.headless,
           defaultViewport: chromium.defaultViewport,
         }
@@ -95,18 +104,12 @@ async function fetchImportantSections(url) {
           defaultViewport: null,
         };
 
-    if (!executablePath && isRender) {
-      throw new Error("Chromium executablePath is null on Render. Check chrome-aws-lambda setup.");
-    }
-
     browser = await puppeteer.launch(launchOptions);
     console.log("✅ Puppeteer launched successfully");
   } catch (error) {
     console.error("❌ Error launching Puppeteer:", error);
     throw error;
   }
-
-
 
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
