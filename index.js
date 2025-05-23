@@ -85,7 +85,7 @@ async function fetchImportantSections(url) {
     const launchOptions = isRender
       ? {
           args: chromium.args,
-          executablePath: await chromium.executablePath || "/usr/bin/chromium-browser",
+          executablePath: await chromium.executablePath ?? null,
           headless: chromium.headless,
           defaultViewport: chromium.defaultViewport,
         }
