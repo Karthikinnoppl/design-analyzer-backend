@@ -6,7 +6,7 @@ const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
 
-const app = express();
+
 
 // ✅ Robust Render mode detection
 const isRender =
@@ -24,6 +24,7 @@ console.log("✅ isRender =", isRender);
 const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
 const chromium = isRender ? require("chrome-aws-lambda") : null;
 
+const app = express();
 
 
 
@@ -77,39 +78,32 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function fetchImportantSections(url) {
   console.log("🚀 Launching Puppeteer...");
-  let browser;
 
-  try {
-    const executablePath = isRender ? await chromium.executablePath : undefined;
+  let executablePath = null;
 
-    if (isRender) {
-      console.log("🧭 Render mode detected");
-      console.log("📍 Chromium executablePath =", executablePath);
+  if (isRender) {
+    console.log("🌐 Render mode detected");
+    executablePath = await chromium.executablePath;
+    console.log("🔧 Chromium executablePath =", executablePath);
 
-      if (!executablePath) {
-        throw new Error("Chromium executablePath is null on Render. Check if chrome-aws-lambda is installed properly.");
-      }
+    if (!executablePath) {
+      throw new Error("Chromium executablePath is null on Render. Check chrome-aws-lambda is installed properly.");
     }
+  }
 
-    const launchOptions = isRender
+  const browser = await puppeteer.launch(
+    isRender
       ? {
           args: chromium.args,
-          executablePath: await chromium.executablePath,
+          executablePath,
           headless: chromium.headless,
           defaultViewport: chromium.defaultViewport,
         }
       : {
           headless: true,
           args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          defaultViewport: null,
-        };
-
-    browser = await puppeteer.launch(launchOptions);
-    console.log("✅ Puppeteer launched successfully");
-  } catch (error) {
-    console.error("❌ Error launching Puppeteer:", error);
-    throw error;
-  }
+        }
+  );
 
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
@@ -128,9 +122,9 @@ async function fetchImportantSections(url) {
   const main = await safeEval("main");
 
   await browser.close();
-
   return { header, nav, footer, main };
 }
+
 
 
 function getValidationInstructions(pageType) {
