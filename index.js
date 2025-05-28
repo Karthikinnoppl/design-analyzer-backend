@@ -83,11 +83,19 @@ async function fetchImportantSections(url) {
 
   if (isRender) {
     console.log("🌐 Render mode detected");
-    executablePath = await chromium.executablePath;
-    console.log("🔧 Chromium executablePath =", executablePath);
+
+    try {
+      executablePath = await chromium.executablePath;
+    } catch (err) {
+      console.error("❌ Failed to resolve executablePath:", err);
+    }
+
+    console.log("🔧 chromium.executablePath =", executablePath);
 
     if (!executablePath) {
-      throw new Error("Chromium executablePath is null on Render. Check chrome-aws-lambda is installed properly.");
+      throw new Error(
+        "❌ chromium.executablePath is null. Ensure chrome-aws-lambda is installed and deployed correctly."
+      );
     }
   }
 
@@ -124,6 +132,7 @@ async function fetchImportantSections(url) {
   await browser.close();
   return { header, nav, footer, main };
 }
+
 
 
 
