@@ -30,8 +30,6 @@ app.use(express.json());
 
 const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
 
-let puppeteer;
-let chromium;
 
 if (isRender) {
   console.log("🌐 Render mode detected");
