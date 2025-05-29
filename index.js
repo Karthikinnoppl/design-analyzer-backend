@@ -6,6 +6,7 @@ const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
 const puppeteer = require("puppeteer-core");
+const chromium = require("chrome-aws-lambda");
 
 
 
