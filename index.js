@@ -1,4 +1,4 @@
-require("dotenv").config(); // Load .env first
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -7,32 +7,11 @@ const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
 const puppeteer = require("puppeteer");
 
-// ✅ Detect Render deployment
-const isRender =
-  process.env.RENDER === "true" ||
-  process.env.NODE_ENV === "production" ||
-  !!process.env.RENDER_EXTERNAL_URL;
-
-console.log("🔍 process.env.RENDER =", process.env.RENDER);
-console.log("🔍 process.env.NODE_ENV =", process.env.NODE_ENV);
-console.log("🔍 process.env.RENDER_EXTERNAL_URL =", process.env.RENDER_EXTERNAL_URL);
-console.log("✅ isRender =", isRender);
-
 const app = express();
+const PORT = process.env.PORT || 3001;
 
-
-
-
-if (!process.env.MONGO_URI || !process.env.OPENAI_API_KEY || !process.env.PAGESPEED_API_KEY) {
-  console.error("❌ Required environment variables are missing.");
-  process.exit(1);
-}
-
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://design-score-app.vercel.app"
-];
-
+// ✅ Set up basic CORS policy
+const allowedOrigins = ["https://design-score-app.vercel.app"];
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -42,21 +21,20 @@ const corsOptions = {
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
-  credentials: true,
-  optionsSuccessStatus: 200,
 };
-
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight OPTIONS requests
-
-
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI);
-mongoose.connection.once("open", () => console.log("✅ Connected to MongoDB"));
-mongoose.connection.on("error", (err) => console.error("❌ MongoDB error:", err));
+const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
+
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
+  });
+
 
 const DesignResultSchema = new mongoose.Schema({
   url: String,
