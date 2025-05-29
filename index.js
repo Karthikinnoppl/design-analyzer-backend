@@ -31,7 +31,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
+//const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
+const isRender = process.env.RENDER?.toLowerCase() === "true";
 
 const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
 const chromium = isRender ? require("chrome-aws-lambda") : null;
