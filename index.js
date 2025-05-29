@@ -69,6 +69,7 @@ async function fetchImportantSections(url) {
     console.log("chromium.executablePath:", executablePath);
 
     if (!executablePath) {
+      console.error("❌ Chromium executable path is null!", executablePath);
       throw new Error("❌ chromium.executablePath is null. Cannot launch browser.");
     }
 
@@ -200,9 +201,9 @@ ${htmlSnippet}`;
     let parsed;
     try {
       parsed = JSON.parse(cleanJson);
-    } catch (err) {
-      console.error("❌ JSON parse error:", err.message);
-      return res.status(500).json({ error: "Invalid JSON format from GPT." });
+    } catch (error) {
+      console.error("❌ Error during analysis:", error); // ✅ logs full object + stack
+      res.status(500).json({ error: error.message || "Internal server error." });
     }
 
     const cleanedSections = parsed.sections;
@@ -224,9 +225,13 @@ ${htmlSnippet}`;
       checklist: parsed.checklist,
     });
   } catch (error) {
-    console.error("❌ Error during analysis:", error.message);
+    console.error("❌ Error during analysis:", error);
     res.status(500).json({ error: "Internal server error." });
   }
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
 });
 
 app.listen(PORT, () => {
