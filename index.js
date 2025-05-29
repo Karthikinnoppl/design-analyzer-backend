@@ -21,8 +21,12 @@ console.log("🔍 process.env.RENDER_EXTERNAL_URL =", process.env.RENDER_EXTERNA
 console.log("✅ isRender =", isRender);
 
 // ✅ Dynamic puppeteer engine loading
-const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
-const chromium = isRender ? require("chrome-aws-lambda") : null;
+const puppeteer = isRender
+  ? require("puppeteer-core")
+  : require("puppeteer");
+const chromium = isRender
+  ? require("chrome-aws-lambda")
+  : null;
 
 const app = express();
 
@@ -99,19 +103,13 @@ async function fetchImportantSections(url) {
     }
   }
 
-  const browser = await puppeteer.launch(
-    isRender
-      ? {
-          args: chromium.args,
-          executablePath,
-          headless: chromium.headless,
-          defaultViewport: chromium.defaultViewport,
-        }
-      : {
-          headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-        }
-  );
+  const browser = await puppeteer.launch({
+    args: isRender ? chromium.args : ["--no-sandbox"],
+    executablePath: isRender
+      ? (await chromium.executablePath) || "/usr/bin/google-chrome"
+      : undefined,
+    headless: true,
+  });
 
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
