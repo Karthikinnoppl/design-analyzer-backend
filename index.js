@@ -31,18 +31,10 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-let puppeteer;
-let chromium;
-
 const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
 
-if (isRender) {
-  chromium = require("chrome-aws-lambda");
-  puppeteer = require("puppeteer-core");
-} else {
-  puppeteer = require("puppeteer");
-}
-
+const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
+const chromium = isRender ? require("chrome-aws-lambda") : null;
 
 mongoose
   .connect(process.env.MONGO_URI)
