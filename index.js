@@ -5,7 +5,9 @@ const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
+
+
 
 const app = express();
 const PORT = process.env.PORT || 3001;
