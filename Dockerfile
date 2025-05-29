@@ -1,28 +1,13 @@
-FROM public.ecr.aws/lambda/nodejs:18
+FROM node:18-slim
 
-# Install required libraries for Chromium
-RUN yum install -y \
-  atk \
-  cups-libs \
-  gtk3 \
-  libXcomposite \
-  libXcursor \
-  libXdamage \
-  libXext \
-  libXi \
-  libXrandr \
-  libXScrnSaver \
-  libXtst \
-  pango \
-  alsa-lib \
-  xorg-x11-fonts-Type1 \
-  xorg-x11-fonts-misc \
-  ipa-gothic-fonts \
-  wget \
-  unzip \
-  nss
+# Install system dependencies for Chromium
+RUN apt-get update && apt-get install -y \
+  ca-certificates fonts-liberation libappindicator3-1 libasound2 \
+  libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3 libgdk-pixbuf2.0-0 \
+  libnspr4 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 \
+  wget unzip --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Install Chromium
+# Install Chromium manually
 RUN mkdir -p /usr/src/chromium && \
   cd /usr/src/chromium && \
   wget https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1069273/chrome-linux.zip && \
@@ -30,14 +15,14 @@ RUN mkdir -p /usr/src/chromium && \
   mv chrome-linux /opt/chromium && \
   ln -s /opt/chromium/chrome /usr/bin/chromium-browser
 
-# Set environment variable to use Chromium
+# Set environment variables
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 
-# Copy app files
+# App setup
+WORKDIR /app
 COPY . .
-
-# Install dependencies
 RUN npm install
 
+# Start your Express server
 CMD ["node", "index.js"]
