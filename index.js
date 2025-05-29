@@ -5,8 +5,8 @@ const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
-const puppeteer = require("puppeteer");
-const chromium = require("chrome-aws-lambda");
+//const puppeteer = require("puppeteer");
+//const chromium = require("chrome-aws-lambda");
 
 
 
@@ -14,7 +14,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ✅ Set up basic CORS policy
-const allowedOrigins = ["https://design-score-app.vercel.app"];
+const allowedOrigins = [
+  "http://localhost:3000",  // ✅ Allow local development frontend
+  "https://design-score-app.vercel.app",
+];
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -28,15 +31,18 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+let puppeteer;
+let chromium;
+
 const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
 
-
 if (isRender) {
-  console.log("🌐 Render mode detected");
+  chromium = require("chrome-aws-lambda");
+  puppeteer = require("puppeteer-core");
 } else {
-  console.log("💻 Local mode detected");
   puppeteer = require("puppeteer");
 }
+
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -63,31 +69,32 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 async function fetchImportantSections(url) {
   console.log("🚀 Launching Puppeteer...");
 
-  let executablePath = null;
+  let launchOptions;
 
   if (isRender) {
-    console.log("🌐 Render mode detected");
-
-    try {
-      executablePath = await chromium.executablePath;
-    } catch (err) {
-      console.error("❌ Failed to resolve executablePath:", err);
-    }
-
-    console.log("🔧 chromium.executablePath =", executablePath);
+    const chromium = require("chrome-aws-lambda");
+    const executablePath = await chromium.executablePath;
 
     if (!executablePath) {
-      throw new Error(
-        "❌ chromium.executablePath is null. Ensure chrome-aws-lambda is installed and deployed correctly."
-      );
+      throw new Error("❌ chromium.executablePath is null. Cannot launch browser.");
     }
+
+    launchOptions = {
+      args: chromium.args,
+      executablePath: executablePath,
+      headless: chromium.headless,
+      defaultViewport: chromium.defaultViewport,
+    };
+  } else {
+    launchOptions = {
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    };
   }
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  console.log("🔧 Puppeteer options:", launchOptions);
 
+  const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -107,6 +114,9 @@ async function fetchImportantSections(url) {
   await browser.close();
   return { header, nav, footer, main };
 }
+
+
+
 
 
 
