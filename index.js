@@ -73,6 +73,7 @@ async function fetchImportantSections(url) {
 
   if (isRender) {
     const executablePath = await chromium.executablePath;
+    console.log("chromium.executablePath:", executablePath);
 
     if (!executablePath) {
       throw new Error("❌ chromium.executablePath is null. Cannot launch browser.");
