@@ -72,7 +72,6 @@ async function fetchImportantSections(url) {
   let launchOptions;
 
   if (isRender) {
-    const chromium = require("chrome-aws-lambda");
     const executablePath = await chromium.executablePath;
 
     if (!executablePath) {
