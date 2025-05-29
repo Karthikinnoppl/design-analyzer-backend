@@ -5,30 +5,21 @@ const cors = require("cors");
 const fetch = require("node-fetch");
 const { OpenAI } = require("openai");
 const mongoose = require("mongoose");
+const puppeteer = require("puppeteer");
 
-
-
-// ✅ Robust Render mode detection
+// ✅ Detect Render deployment
 const isRender =
   process.env.RENDER === "true" ||
   process.env.NODE_ENV === "production" ||
   !!process.env.RENDER_EXTERNAL_URL;
 
-// 🐞 Debug logs
 console.log("🔍 process.env.RENDER =", process.env.RENDER);
 console.log("🔍 process.env.NODE_ENV =", process.env.NODE_ENV);
 console.log("🔍 process.env.RENDER_EXTERNAL_URL =", process.env.RENDER_EXTERNAL_URL);
 console.log("✅ isRender =", isRender);
 
-// ✅ Dynamic puppeteer engine loading
-const puppeteer = isRender
-  ? require("puppeteer-core")
-  : require("puppeteer");
-const chromium = isRender
-  ? require("chrome-aws-lambda")
-  : null;
-
 const app = express();
+
 
 
 
@@ -104,11 +95,8 @@ async function fetchImportantSections(url) {
   }
 
   const browser = await puppeteer.launch({
-    args: isRender ? chromium.args : ["--no-sandbox"],
-    executablePath: isRender
-      ? (await chromium.executablePath) || "/usr/bin/google-chrome"
-      : undefined,
     headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
   const page = await browser.newPage();
