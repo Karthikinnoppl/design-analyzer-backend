@@ -7,13 +7,13 @@
   },
   "dependencies": {
     "chrome-aws-lambda": "^10.1.0",
+    "puppeteer-core": "10.4.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "mongoose": "^8.14.1",
+    "mongoose": "^8.0.0",
     "node-fetch": "^2.6.7",
-    "openai": "^4.0.0",
-    "puppeteer": "^24.9.0",
-    "puppeteer-core": "^24.9.0"
+    "openai": "^4.0.0"
   }
 }
+
