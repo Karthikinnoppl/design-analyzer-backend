@@ -30,6 +30,18 @@ app.use(express.json());
 
 const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
 
+let puppeteer;
+let chromium;
+
+if (isRender) {
+  console.log("🌐 Render mode detected");
+  chromium = require("chrome-aws-lambda");
+  puppeteer = require("puppeteer-core");
+} else {
+  console.log("💻 Local mode detected");
+  puppeteer = require("puppeteer");
+}
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB"))
