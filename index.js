@@ -33,8 +33,6 @@ const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "prod
 
 if (isRender) {
   console.log("🌐 Render mode detected");
-  chromium = require("chrome-aws-lambda");
-  puppeteer = require("puppeteer-core");
 } else {
   console.log("💻 Local mode detected");
   puppeteer = require("puppeteer");
