@@ -32,10 +32,12 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 //const isRender = process.env.RENDER === "true" || process.env.NODE_ENV === "production";
-const isRender = process.env.RENDER?.toLowerCase() === "true";
+//const isRender = process.env.RENDER?.toLowerCase() === "true";
 
-const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
-const chromium = isRender ? require("chrome-aws-lambda") : null;
+//const puppeteer = isRender ? require("puppeteer-core") : require("puppeteer");
+//const chromium = isRender ? require("chrome-aws-lambda") : null;
+
+const puppeteer = require("puppeteer");
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -62,31 +64,13 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 async function fetchImportantSections(url) {
   console.log("🚀 Launching Puppeteer...");
 
-  let launchOptions;
+  const launchOptions = {
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    // Don't use executablePath — let Puppeteer use its own bundled Chromium
+  };
 
-  if (isRender) {
-    const executablePath = await chromium.executablePath;
-    console.log("chromium.executablePath:", executablePath);
-
-    if (!executablePath) {
-      console.error("❌ Chromium executable path is null!", executablePath);
-      throw new Error("❌ chromium.executablePath is null. Cannot launch browser.");
-    }
-
-    launchOptions = {
-      args: chromium.args,
-      executablePath: executablePath,
-      headless: chromium.headless,
-      defaultViewport: chromium.defaultViewport,
-    };
-  } else {
-    launchOptions = {
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    };
-  }
-
-  console.log("🔧 Puppeteer options:", launchOptions);
+  console.log("🔧 Puppeteer launch options:", launchOptions);
 
   const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
@@ -108,6 +92,9 @@ async function fetchImportantSections(url) {
   await browser.close();
   return { header, nav, footer, main };
 }
+
+
+
 
 
 
